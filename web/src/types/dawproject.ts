@@ -1,8 +1,8 @@
 /**
  * DawProject Type Definitions
  *
- * Basic implementation for browser-based conversion
- * VST plugins and advanced features are not supported in Phase 1
+ * Phase 2: Extended implementation with automation, sends, and VST metadata
+ * VST audio processing not supported (metadata only)
  */
 
 // ============ Basic Types ============
@@ -10,6 +10,8 @@
 export type ContentType = 'notes' | 'audio' | 'audio notes' | 'tracks';
 export type ChannelRole = 'regular' | 'master' | 'effect';
 export type TimeUnit = 'beats' | 'seconds';
+export type DeviceRole = 'instrument' | 'audioFX' | 'noteFX';
+export type PluginType = 'Vst2Plugin' | 'Vst3Plugin' | 'ClapPlugin';
 
 // ============ Parameters ============
 
@@ -67,9 +69,9 @@ export interface DawChannel {
   pan: DawNumericParam;
   volume: DawNumericParam;
 
-  // Not implemented in Phase 1:
-  // sends: DawSend[];
-  // devices: DawDevice[];
+  // Phase 2:
+  sends?: DawSend[];
+  devices?: DawDevice[];
 }
 
 // ============ Track ============
@@ -94,6 +96,10 @@ export interface DawNote {
   vel?: number; // Velocity (0-1)
   rel?: number; // Release velocity
   channel?: number; // MIDI channel
+
+  // Phase 2:
+  points?: DawPoints; // Per-note automation
+  lanes?: DawLane; // Per-note lanes
 }
 
 export interface DawNotes {
@@ -135,10 +141,10 @@ export interface DawClip {
   notes?: DawNotes;
   audio?: DawAudio;
 
-  // Not implemented in Phase 1:
-  // clips?: DawClips; // Nested clips
-  // warps?: DawWarps;
-  // lanes?: DawLane;
+  // Phase 2:
+  clips?: DawClips; // Nested clips
+  warps?: DawWarps;
+  lanes?: DawLane;
 }
 
 export interface DawClips {
@@ -151,8 +157,8 @@ export interface DawLane {
   track?: string; // Track ID reference
   clips: DawClips;
 
-  // Not implemented in Phase 1:
-  // points?: DawPoints[]; // Automation
+  // Phase 2:
+  points?: DawPoints[]; // Automation
 }
 
 export interface DawLaneContainer {
@@ -181,9 +187,9 @@ export interface DawArrangement {
   lanes: DawLaneContainer;
   markers?: DawMarkers;
 
-  // Not implemented in Phase 1:
-  // tempoAutomation?: DawPoints;
-  // timeSignatureAutomation?: DawTimeSigPoints;
+  // Phase 2:
+  tempoAutomation?: DawPoints;
+  timeSignatureAutomation?: DawTimeSigPoints;
 }
 
 // ============ Project ============
@@ -210,4 +216,87 @@ export interface DawMetadata {
   OriginalArtist?: string;
   Songwriter?: string;
   Producer?: string;
+}
+
+// ============ Phase 2: Automation ============
+
+export interface DawPoint {
+  time: number;
+  value: number;
+  curve?: number; // Curve amount for smooth interpolation
+}
+
+export interface DawBoolPoint {
+  time: number;
+  value: boolean;
+}
+
+export interface DawTarget {
+  parameter?: string; // Parameter ID reference
+  expression?: string; // Expression type (e.g., 'gain', 'pan', 'pitch', 'transpose')
+}
+
+export interface DawPoints {
+  target?: DawTarget;
+  points: DawPoint[];
+  pointsBool?: DawBoolPoint[];
+  unit?: string;
+  id?: string;
+}
+
+export interface DawTimeSigPoint {
+  time: number;
+  numerator: number;
+  denominator: number;
+}
+
+export interface DawTimeSigPoints {
+  points: DawTimeSigPoint[];
+}
+
+// ============ Phase 2: Sends ============
+
+export interface DawSend {
+  destination: string; // Return track ID
+  type?: string;
+  id?: string;
+  volume: DawNumericParam;
+}
+
+// ============ Phase 2: Devices (VST Metadata) ============
+
+export interface DawRealParameter {
+  parameterID: number;
+  value: number;
+  name?: string;
+  id?: string;
+}
+
+export interface DawDevice {
+  pluginType: PluginType;
+  deviceRole?: DeviceRole;
+  deviceName?: string;
+  id?: string;
+  enabled?: DawBoolParam;
+
+  // VST2/VST3/CLAP specific
+  state?: string; // Path to state file in ZIP
+  vstId?: string; // VST unique ID
+  clsid?: string; // VST3 CLSID
+  realParameters?: DawRealParameter[]; // Parameter values
+}
+
+// ============ Phase 2: Warps ============
+
+export interface DawWarpPoint {
+  time: number; // Time in project
+  contentTime: number; // Time in audio file
+}
+
+export interface DawWarps {
+  id?: string;
+  timeUnit?: TimeUnit;
+  contentTimeUnit?: TimeUnit;
+  audio?: DawAudio;
+  points: DawWarpPoint[];
 }
