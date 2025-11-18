@@ -160,7 +160,7 @@ export class DawProjectInputPlugin implements InputPlugin {
 
         const laneEls = lanesContainer.querySelectorAll(':scope > Lanes');
         laneEls.forEach(laneEl => {
-          const lane = {
+          const lane: any = {
             track: laneEl.getAttribute('track') || undefined,
             clips: { clips: [] as DawClip[] },
           };
@@ -170,6 +170,15 @@ export class DawProjectInputPlugin implements InputPlugin {
             const clipEls = clipsEl.querySelectorAll(':scope > Clip');
             clipEls.forEach(clipEl => {
               lane.clips.clips.push(this.parseClip(clipEl));
+            });
+          }
+
+          // Phase 2: Parse lane automation points
+          const pointsEls = laneEl.querySelectorAll(':scope > Points');
+          if (pointsEls.length > 0) {
+            lane.points = [];
+            pointsEls.forEach(pointsEl => {
+              lane.points.push(this.parsePoints(pointsEl));
             });
           }
 
@@ -193,6 +202,18 @@ export class DawProjectInputPlugin implements InputPlugin {
             color: markerEl.getAttribute('color') || undefined,
           });
         });
+      }
+
+      // Phase 2: Parse Tempo Automation
+      const tempoAutoEl = arrangementEl.querySelector('TempoAutomation');
+      if (tempoAutoEl) {
+        project.arrangement.tempoAutomation = this.parsePoints(tempoAutoEl);
+      }
+
+      // Phase 2: Parse Time Signature Automation
+      const timeSigAutoEl = arrangementEl.querySelector('TimeSignatureAutomation');
+      if (timeSigAutoEl) {
+        project.arrangement.timeSignatureAutomation = this.parseTimeSigPoints(timeSigAutoEl);
       }
     }
 
@@ -233,6 +254,26 @@ export class DawProjectInputPlugin implements InputPlugin {
       const volumeEl = channelEl.querySelector('Volume');
       if (volumeEl) {
         track.channel.volume = this.parseNumericParam(volumeEl, 1.0);
+      }
+
+      // Phase 2: Parse Sends
+      const sendsEl = channelEl.querySelector('Sends');
+      if (sendsEl) {
+        track.channel.sends = [];
+        const sendEls = sendsEl.querySelectorAll('Send');
+        sendEls.forEach(sendEl => {
+          track.channel.sends!.push(this.parseSend(sendEl));
+        });
+      }
+
+      // Phase 2: Parse Devices
+      const devicesEl = channelEl.querySelector('Devices');
+      if (devicesEl) {
+        track.channel.devices = [];
+        const deviceEls = devicesEl.querySelectorAll('Vst2Plugin, Vst3Plugin, ClapPlugin');
+        deviceEls.forEach(deviceEl => {
+          track.channel.devices!.push(this.parseDevice(deviceEl));
+        });
       }
     }
 
@@ -275,14 +316,29 @@ export class DawProjectInputPlugin implements InputPlugin {
 
       const noteEls = notesEl.querySelectorAll('Note');
       noteEls.forEach(noteEl => {
-        clip.notes!.notes.push({
+        const note: any = {
           time: parseFloat(noteEl.getAttribute('time') || '0'),
           duration: parseFloat(noteEl.getAttribute('duration') || '0'),
           key: parseInt(noteEl.getAttribute('key') || '60'),
           vel: parseFloat(noteEl.getAttribute('vel') || '1'),
           rel: parseFloat(noteEl.getAttribute('rel') || '0') || undefined,
           channel: parseInt(noteEl.getAttribute('channel') || '0') || undefined,
-        });
+        };
+
+        // Phase 2: Parse per-note automation
+        const notePointsEl = noteEl.querySelector('Points');
+        if (notePointsEl) {
+          note.points = this.parsePoints(notePointsEl);
+        }
+
+        // Phase 2: Parse per-note lanes
+        const noteLanesEl = noteEl.querySelector('Lanes');
+        if (noteLanesEl) {
+          // Note: Simplified parsing - full lane structure would be recursive
+          note.lanes = { track: undefined, clips: { clips: [] } };
+        }
+
+        clip.notes!.notes.push(note);
       });
     }
 
@@ -300,6 +356,29 @@ export class DawProjectInputPlugin implements InputPlugin {
           path: fileEl?.getAttribute('path') || '',
         },
       };
+    }
+
+    // Phase 2: Parse Warps
+    const warpsEl = clipEl.querySelector('Warps');
+    if (warpsEl) {
+      clip.warps = this.parseWarps(warpsEl);
+    }
+
+    // Phase 2: Parse Nested Clips
+    const nestedClipsEl = clipEl.querySelector('Clips');
+    if (nestedClipsEl) {
+      clip.clips = { clips: [] };
+      const nestedClipEls = nestedClipsEl.querySelectorAll(':scope > Clip');
+      nestedClipEls.forEach(nestedClipEl => {
+        clip.clips!.clips.push(this.parseClip(nestedClipEl));
+      });
+    }
+
+    // Phase 2: Parse Clip Lanes
+    const clipLanesEl = clipEl.querySelector('Lanes');
+    if (clipLanesEl) {
+      // Simplified parsing
+      clip.lanes = { track: undefined, clips: { clips: [] } };
     }
 
     return clip;
@@ -492,11 +571,159 @@ export class DawProjectInputPlugin implements InputPlugin {
     return value;
   }
 
+  // ============ Phase 2: Parse Helper Functions ============
+
+  private parsePoints(pointsEl: Element): DawPoints {
+    const points: DawPoints = {
+      points: [],
+      id: pointsEl.getAttribute('id') || undefined,
+      unit: pointsEl.getAttribute('unit') || undefined,
+    };
+
+    // Parse Target
+    const targetEl = pointsEl.querySelector('Target');
+    if (targetEl) {
+      points.target = {
+        parameter: targetEl.getAttribute('parameter') || undefined,
+        expression: targetEl.getAttribute('expression') || undefined,
+      };
+    }
+
+    // Parse Points
+    const pointEls = pointsEl.querySelectorAll('Point');
+    pointEls.forEach(pointEl => {
+      points.points.push({
+        time: parseFloat(pointEl.getAttribute('time') || '0'),
+        value: parseFloat(pointEl.getAttribute('value') || '0'),
+        curve: parseFloat(pointEl.getAttribute('curve') || '0') || undefined,
+      });
+    });
+
+    // Parse Boolean Points
+    const boolPointEls = pointsEl.querySelectorAll('BoolPoint');
+    if (boolPointEls.length > 0) {
+      points.pointsBool = [];
+      boolPointEls.forEach(pointEl => {
+        points.pointsBool!.push({
+          time: parseFloat(pointEl.getAttribute('time') || '0'),
+          value: pointEl.getAttribute('value') === 'true',
+        });
+      });
+    }
+
+    return points;
+  }
+
+  private parseTimeSigPoints(el: Element): DawTimeSigPoints {
+    const points: DawTimeSigPoints = {
+      points: [],
+    };
+
+    const pointEls = el.querySelectorAll('Point');
+    pointEls.forEach(pointEl => {
+      points.points.push({
+        time: parseFloat(pointEl.getAttribute('time') || '0'),
+        numerator: parseInt(pointEl.getAttribute('numerator') || '4'),
+        denominator: parseInt(pointEl.getAttribute('denominator') || '4'),
+      });
+    });
+
+    return points;
+  }
+
+  private parseSend(sendEl: Element): DawSend {
+    const send: DawSend = {
+      destination: sendEl.getAttribute('destination') || '',
+      type: sendEl.getAttribute('type') || undefined,
+      id: sendEl.getAttribute('id') || undefined,
+      volume: { value: 1.0, unit: 'linear', min: 0, max: 2 },
+    };
+
+    const volumeEl = sendEl.querySelector('Volume');
+    if (volumeEl) {
+      send.volume = this.parseNumericParam(volumeEl, 1.0);
+    }
+
+    return send;
+  }
+
+  private parseDevice(deviceEl: Element): DawDevice {
+    const device: DawDevice = {
+      pluginType: deviceEl.tagName as PluginType,
+      id: deviceEl.getAttribute('id') || undefined,
+      deviceRole: (deviceEl.getAttribute('deviceRole') as any) || undefined,
+      deviceName: deviceEl.getAttribute('deviceName') || undefined,
+    };
+
+    // Parse enabled parameter
+    const enabledEl = deviceEl.querySelector('Enabled');
+    if (enabledEl) {
+      device.enabled = this.parseBoolParam(enabledEl, true);
+    }
+
+    // Parse VST-specific attributes
+    device.state = deviceEl.getAttribute('state') || undefined;
+    device.vstId = deviceEl.getAttribute('vstId') || undefined;
+    device.clsid = deviceEl.getAttribute('clsid') || undefined;
+
+    // Parse RealParameter elements
+    const realParamEls = deviceEl.querySelectorAll('RealParameter');
+    if (realParamEls.length > 0) {
+      device.realParameters = [];
+      realParamEls.forEach(paramEl => {
+        device.realParameters!.push({
+          parameterID: parseInt(paramEl.getAttribute('parameterID') || '0'),
+          value: parseFloat(paramEl.getAttribute('value') || '0'),
+          name: paramEl.getAttribute('name') || undefined,
+          id: paramEl.getAttribute('id') || undefined,
+        });
+      });
+    }
+
+    return device;
+  }
+
+  private parseWarps(warpsEl: Element): DawWarps {
+    const warps: DawWarps = {
+      id: warpsEl.getAttribute('id') || undefined,
+      timeUnit: (warpsEl.getAttribute('timeUnit') as any) || undefined,
+      contentTimeUnit: (warpsEl.getAttribute('contentTimeUnit') as any) || undefined,
+      points: [],
+    };
+
+    // Parse warp points
+    const warpEls = warpsEl.querySelectorAll('Warp');
+    warpEls.forEach(warpEl => {
+      warps.points.push({
+        time: parseFloat(warpEl.getAttribute('time') || '0'),
+        contentTime: parseFloat(warpEl.getAttribute('contentTime') || '0'),
+      });
+    });
+
+    // Parse Audio element
+    const audioEl = warpsEl.querySelector('Audio');
+    if (audioEl) {
+      const fileEl = audioEl.querySelector('File');
+      warps.audio = {
+        id: audioEl.getAttribute('id') || undefined,
+        channels: parseInt(audioEl.getAttribute('channels') || '2') || undefined,
+        duration: parseFloat(audioEl.getAttribute('duration') || '0') || undefined,
+        sampleRate: parseInt(audioEl.getAttribute('sampleRate') || '44100') || undefined,
+        algorithm: audioEl.getAttribute('algorithm') || undefined,
+        file: {
+          path: fileEl?.getAttribute('path') || '',
+        },
+      };
+    }
+
+    return warps;
+  }
+
   isUsable(): { usable: boolean; message: string } {
     if (supportsDecompression()) {
       return {
         usable: true,
-        message: 'DawProject files supported (Basic: tracks, notes, audio. No VST plugins)',
+        message: 'DawProject Phase 2: tracks, notes, audio, automation, sends, VST metadata (no audio processing)',
       };
     } else {
       return {
