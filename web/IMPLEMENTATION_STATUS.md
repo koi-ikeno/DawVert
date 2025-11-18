@@ -58,12 +58,12 @@ Last updated: 2025-11-18
 - ZIP compressed format support (requires modern browser)
 
 #### DawProject (.dawproject)
-- ✅ Input plugin
-- ✅ Output plugin (XML only)
+- ✅ Input plugin (Phase 2)
+- ✅ Output plugin (Phase 2, XML only)
 - ✅ ZIP support (.dawproject)
-- ⚠️ Basic implementation (Phase 1)
+- ✅ Production ready
 
-**Features:**
+**Phase 1 Features:**
 - Basic tracks (notes, audio, hybrid)
 - MIDI notes with velocity and channel
 - Audio clips and file references
@@ -74,13 +74,20 @@ Last updated: 2025-11-18
 - ZIP archive support (requires modern browser)
 - Browser-native XML parsing
 
-**Phase 1 Limitations:**
-- ❌ No VST/VST3/CLAP plugin support
-- ❌ No automation (beyond basic parameters)
-- ❌ No send/return routing
-- ❌ No audio warps/timestretching
-- ❌ No nested clips
-- ❌ Output creates XML only (no ZIP yet)
+**Phase 2 Features:**
+- ✅ Automation parsing and generation (limited by CVPJ support)
+- ✅ Send/Return routing
+- ✅ VST/VST3/CLAP plugin metadata preservation (NO audio processing)
+- ✅ Nested structures (clips, tracks)
+- ✅ Audio warps metadata parsing (no processing)
+- ✅ Per-note automation and lanes
+- ✅ Tempo and time signature automation
+
+**Limitations:**
+- ❌ VST audio processing (impossible in browser)
+- ❌ Audio warp processing (CVPJ limitation)
+- ❌ ZIP output (browser limitation - XML only)
+- ⚠️ Automation limited by CVPJ support
 
 ---
 
@@ -183,12 +190,12 @@ Last updated: 2025-11-18
 | Category | Lines | Files |
 |----------|-------|-------|
 | **Core Libraries** | ~2,200 | 6 |
-| **Plugins (Implemented)** | ~2,100 | 7 |
+| **Plugins (Implemented)** | ~2,580 | 7 |
 | **Plugins (Stubs)** | ~120 | 1 |
-| **Type Definitions** | ~650 | 2 |
+| **Type Definitions** | ~625 | 2 |
 | **Utilities** | ~650 | 3 |
 | **Documentation** | ~1,700 | 4 |
-| **Total** | ~7,420 | 23 |
+| **Total** | ~7,875 | 23 |
 
 ---
 

@@ -37,7 +37,7 @@ Web browser version of [DawVert](https://github.com/SatyrDiamond/DawVert) - a DA
   - ZIP compressed format (.sngz) support (requires modern browser)
 
 - **DawProject** (.dawproject) - Standard DAW project format:
-  - Basic tracks (notes, audio, hybrid)
+  - **Phase 1**: Basic tracks (notes, audio, hybrid)
   - MIDI notes with velocity
   - Audio clips and references
   - Track parameters (volume, pan, mute, solo)
@@ -45,7 +45,12 @@ Web browser version of [DawVert](https://github.com/SatyrDiamond/DawVert) - a DA
   - Markers
   - Metadata (title, artist, album, etc.)
   - ZIP archive support (requires modern browser)
-  - **Phase 1 Limitations**: No VST/VST3/CLAP plugins, no automation, no send/return routing
+  - **Phase 2**: Advanced features
+    - Automation generation (limited by CVPJ support)
+    - Send/Return routing
+    - VST/VST3/CLAP plugin metadata preservation (NO audio processing)
+    - Nested structures
+  - **Limitations**: No VST audio processing (browser limitation), no audio warps (CVPJ limitation)
 
 ### Planned (Stubs Available)
 

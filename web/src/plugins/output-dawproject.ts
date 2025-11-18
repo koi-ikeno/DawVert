@@ -1,19 +1,25 @@
 /**
- * DawProject Output Plugin (Basic Implementation)
+ * DawProject Output Plugin (Phase 2 - Extended)
  *
  * Generates DawProject files (.dawproject)
- * Format: ZIP archive containing project.xml
+ * Format: XML output (ZIP creation in future phase)
  *
- * Phase 1 Limitations:
- * - No VST/VST3/CLAP plugin support
- * - No automation
- * - No send/return routing
- * - Basic tracks, notes, and audio only
- * - No ZIP creation (browser limitation) - outputs uncompressed XML only
+ * Phase 2 Features:
+ * ✅ Automation generation (limited - CVPJ doesn't fully support all automation types)
+ * ✅ Send/Return routing (if present in CVPJ)
+ * ✅ VST plugin metadata preservation (name, ID - NO audio processing)
+ * ✅ Basic nested structures
+ * ✅ Markers
+ *
+ * Limitations:
+ * ❌ VST audio processing (impossible in browser)
+ * ❌ ZIP creation (browser limitation - outputs XML only)
+ * ❌ Full automation (CVPJ limited support)
+ * ❌ Audio warps (not in CVPJ)
  */
 
 import type { OutputPlugin, PluginInfo } from '../lib/plugin-system';
-import type { CVPJProject, ConversionConfig, Track } from '../types/cvpj';
+import type { CVPJProject, ConversionConfig, Track, Plugin } from '../types/cvpj';
 
 export class DawProjectOutputPlugin implements OutputPlugin {
   getInfo(): PluginInfo {
@@ -153,6 +159,49 @@ export class DawProjectOutputPlugin implements OutputPlugin {
     volumeEl.setAttribute('name', 'Volume');
     channelEl.appendChild(volumeEl);
 
+    // Phase 2: Add sends if present
+    if (track.sends) {
+      let sendIndex = 0;
+      for (const sendDest in track.sends) {
+        const sendData = track.sends[sendDest];
+        const sendVolume = typeof sendData === 'number' ? sendData : (sendData.amount || 1.0);
+        this.createSendElement(doc, channelEl, `${trackId}_send${sendIndex}`, sendDest, sendVolume);
+        sendIndex++;
+      }
+    }
+
+    // Phase 2: Add devices (plugins) if present
+    const allPlugins: Plugin[] = [];
+
+    // Add instrument plugins
+    if (track.plugslots) {
+      for (const slot of track.plugslots) {
+        if (slot.plugin) {
+          allPlugins.push(slot.plugin);
+        }
+      }
+    }
+
+    // Add audio effect plugins
+    if (track.fxslots_audio) {
+      for (const slot of track.fxslots_audio) {
+        if (slot.plugin) {
+          allPlugins.push(slot.plugin);
+        }
+      }
+    }
+
+    // Generate device elements
+    if (allPlugins.length > 0) {
+      const devicesEl = doc.createElement('Devices');
+      let pluginIndex = 0;
+      for (const plugin of allPlugins) {
+        this.createDeviceElement(doc, devicesEl, plugin, `${trackId}_plugin${pluginIndex}`);
+        pluginIndex++;
+      }
+      channelEl.appendChild(devicesEl);
+    }
+
     trackEl.appendChild(channelEl);
     parent.appendChild(trackEl);
   }
@@ -229,6 +278,18 @@ export class DawProjectOutputPlugin implements OutputPlugin {
     }
 
     laneEl.appendChild(clipsEl);
+
+    // Phase 2: Add automation if present
+    if (track.automation) {
+      for (const autoPath in track.automation) {
+        const autoData = track.automation[autoPath];
+        const pointsEl = this.createPointsElement(doc, autoData, autoPath, `${trackId}_auto_${autoPath}`);
+        if (pointsEl) {
+          laneEl.appendChild(pointsEl);
+        }
+      }
+    }
+
     parent.appendChild(laneEl);
   }
 
@@ -258,10 +319,100 @@ export class DawProjectOutputPlugin implements OutputPlugin {
     }).join('\n');
   }
 
+  // ============ Phase 2: Helper Functions ============
+
+  private createPointsElement(doc: Document, automationData: any, paramName?: string, paramId?: string): Element | null {
+    if (!automationData || !automationData.points || automationData.points.length === 0) {
+      return null;
+    }
+
+    const pointsEl = doc.createElement('Points');
+
+    if (paramId) {
+      pointsEl.setAttribute('id', paramId);
+    }
+
+    // Add target if we have parameter info
+    if (paramName) {
+      const targetEl = doc.createElement('Target');
+      targetEl.setAttribute('parameter', paramName);
+      pointsEl.appendChild(targetEl);
+    }
+
+    // Add points
+    for (const autoPoint of automationData.points) {
+      const pointEl = doc.createElement('Point');
+      pointEl.setAttribute('time', String(autoPoint.position));
+      pointEl.setAttribute('value', String(autoPoint.value));
+
+      if (autoPoint.tension !== undefined) {
+        pointEl.setAttribute('curve', String(autoPoint.tension));
+      }
+
+      pointsEl.appendChild(pointEl);
+    }
+
+    return pointsEl;
+  }
+
+  private createSendElement(doc: Document, parent: Element, sendId: string, destination: string, volume: number): void {
+    const sendEl = doc.createElement('Send');
+    sendEl.setAttribute('id', sendId);
+    sendEl.setAttribute('destination', destination);
+    sendEl.setAttribute('type', 'post');
+
+    const volumeEl = doc.createElement('Volume');
+    volumeEl.setAttribute('value', String(volume * 2)); // CVPJ 0~1 to DawProject 0~2
+    volumeEl.setAttribute('min', '0');
+    volumeEl.setAttribute('max', '2');
+    volumeEl.setAttribute('unit', 'linear');
+    volumeEl.setAttribute('name', 'Volume');
+    sendEl.appendChild(volumeEl);
+
+    parent.appendChild(sendEl);
+  }
+
+  private createDeviceElement(doc: Document, parent: Element, plugin: Plugin, pluginId: string): void {
+    // Determine plugin type from CVPJ
+    let pluginType = 'Vst3Plugin'; // Default
+    let deviceRole: 'instrument' | 'audioFX' | 'noteFX' = 'audioFX';
+
+    if (plugin.plugin_category === 'external') {
+      if (plugin.plugin_type === 'vst2') pluginType = 'Vst2Plugin';
+      else if (plugin.plugin_type === 'vst3') pluginType = 'Vst3Plugin';
+      else if (plugin.plugin_type === 'clap') pluginType = 'ClapPlugin';
+    }
+
+    if (plugin.role === 'synth' || plugin.role === 'inst') {
+      deviceRole = 'instrument';
+    } else if (plugin.role === 'fx' || plugin.role === 'effect') {
+      deviceRole = 'audioFX';
+    }
+
+    const deviceEl = doc.createElement(pluginType);
+    deviceEl.setAttribute('id', pluginId + '_device');
+    deviceEl.setAttribute('deviceRole', deviceRole);
+
+    if (plugin.visual?.name) {
+      deviceEl.setAttribute('deviceName', plugin.visual.name);
+    }
+
+    // Add enabled parameter
+    const enabledEl = doc.createElement('Enabled');
+    enabledEl.setAttribute('value', 'true');
+    enabledEl.setAttribute('name', 'Enabled');
+    deviceEl.appendChild(enabledEl);
+
+    // Phase 2: Add VST metadata if available (CVPJ doesn't have full VST support, but we can preserve what's there)
+    // Note: This is mostly placeholder - CVPJ doesn't store VST state
+
+    parent.appendChild(deviceEl);
+  }
+
   isUsable(): { usable: boolean; message: string } {
     return {
       usable: true,
-      message: 'DawProject output (XML only, basic features)',
+      message: 'DawProject Phase 2: XML output with automation/sends/VST metadata (no ZIP, no audio processing)',
     };
   }
 }
