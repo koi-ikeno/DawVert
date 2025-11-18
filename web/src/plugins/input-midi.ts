@@ -3,8 +3,15 @@
  * Parses MIDI files into CVPJ format
  */
 
-import type { InputPlugin, BasePlugin } from '@/lib/plugin-system';
+import type { InputPlugin } from '@/lib/plugin-system';
 import type { CVPJProject, PluginInfo, ConversionConfig, Note } from '@/types/cvpj';
+import {
+  readVariableLength,
+  readString,
+  MidiMessageType,
+  MidiMetaEventType,
+  getGMInstrumentName,
+} from '@/lib/midi-utils';
 
 export class MidiInputPlugin implements InputPlugin {
   getInfo(): PluginInfo {
@@ -49,10 +56,12 @@ export class MidiInputPlugin implements InputPlugin {
       track_order: [],
       instruments: {},
       instruments_order: [],
-      timesig: [4, 4],
+      timesig: midiData.timeSignature || [4, 4],
       do_actions: [],
       metadata: {
-        bpm: 120,
+        name: midiData.title,
+        bpm: midiData.tempo,
+        comment: midiData.copyright,
       },
     };
 
@@ -62,9 +71,17 @@ export class MidiInputPlugin implements InputPlugin {
       const instId = `inst_${index}`;
 
       // Create instrument
+      const instrumentName =
+        midiTrack.instrumentName ||
+        (midiTrack.program !== undefined
+          ? getGMInstrumentName(midiTrack.program)
+          : undefined) ||
+        midiTrack.name ||
+        `Track ${index + 1}`;
+
       project.instruments![instId] = {
         visual: {
-          name: midiTrack.name || `Track ${index + 1}`,
+          name: instrumentName,
         },
         plugslots: [
           {
@@ -72,6 +89,7 @@ export class MidiInputPlugin implements InputPlugin {
               type: 'midi',
               subtype: 'gm',
               name: 'GM Synth',
+              params: midiTrack.program !== undefined ? { program: midiTrack.program } : undefined,
             },
           },
         ],
@@ -109,8 +127,14 @@ export class MidiInputPlugin implements InputPlugin {
 
   private parseMidiFile(buffer: ArrayBuffer): {
     ppq: number;
+    tempo: number;
+    timeSignature?: [number, number];
+    title?: string;
+    copyright?: string;
     tracks: Array<{
       name?: string;
+      instrumentName?: string;
+      program?: number;
       notes: Note[];
       duration: number;
     }>;
@@ -119,7 +143,7 @@ export class MidiInputPlugin implements InputPlugin {
     let offset = 0;
 
     // Read header chunk
-    const headerType = this.readChars(view, offset, 4);
+    const headerType = readString(view, offset, 4);
     offset += 4;
 
     if (headerType !== 'MThd') {
@@ -140,15 +164,22 @@ export class MidiInputPlugin implements InputPlugin {
 
     const ppq = division & 0x7fff; // Get PPQ (ignoring SMPTE format)
 
+    let tempo = 120; // Default BPM
+    let timeSignature: [number, number] | undefined;
+    let title: string | undefined;
+    let copyright: string | undefined;
+
     const tracks: Array<{
       name?: string;
+      instrumentName?: string;
+      program?: number;
       notes: Note[];
       duration: number;
     }> = [];
 
     // Read track chunks
     for (let i = 0; i < numTracks; i++) {
-      const trackType = this.readChars(view, offset, 4);
+      const trackType = readString(view, offset, 4);
       offset += 4;
 
       if (trackType !== 'MTrk') {
@@ -161,10 +192,18 @@ export class MidiInputPlugin implements InputPlugin {
       const trackData = this.parseTrack(view, offset, trackLength, ppq);
       tracks.push(trackData);
 
+      // Extract global metadata from first track
+      if (i === 0) {
+        if (trackData.tempo !== undefined) tempo = trackData.tempo;
+        if (trackData.timeSignature) timeSignature = trackData.timeSignature;
+        if (trackData.title) title = trackData.title;
+        if (trackData.copyright) copyright = trackData.copyright;
+      }
+
       offset += trackLength;
     }
 
-    return { ppq, tracks };
+    return { ppq, tempo, timeSignature, title, copyright, tracks };
   }
 
   private parseTrack(
@@ -174,6 +213,12 @@ export class MidiInputPlugin implements InputPlugin {
     ppq: number
   ): {
     name?: string;
+    instrumentName?: string;
+    program?: number;
+    tempo?: number;
+    timeSignature?: [number, number];
+    title?: string;
+    copyright?: string;
     notes: Note[];
     duration: number;
   } {
@@ -182,6 +227,12 @@ export class MidiInputPlugin implements InputPlugin {
     const notes: Note[] = [];
     let currentTime = 0;
     let trackName: string | undefined;
+    let instrumentName: string | undefined;
+    let program: number | undefined;
+    let tempo: number | undefined;
+    let timeSignature: [number, number] | undefined;
+    let title: string | undefined;
+    let copyright: string | undefined;
     let runningStatus = 0;
 
     // Track note on/off events
@@ -189,7 +240,7 @@ export class MidiInputPlugin implements InputPlugin {
 
     while (offset < endOffset) {
       // Read delta time
-      const deltaTime = this.readVariableLength(view, offset);
+      const deltaTime = readVariableLength(view, offset);
       offset += deltaTime.bytesRead;
       currentTime += deltaTime.value;
 
@@ -207,7 +258,7 @@ export class MidiInputPlugin implements InputPlugin {
       const messageType = status & 0xf0;
       const channel = status & 0x0f;
 
-      if (messageType === 0x90) {
+      if (messageType === MidiMessageType.NoteOn) {
         // Note On
         const key = view.getUint8(offset);
         offset++;
@@ -229,7 +280,7 @@ export class MidiInputPlugin implements InputPlugin {
             activeNotes.delete(key);
           }
         }
-      } else if (messageType === 0x80) {
+      } else if (messageType === MidiMessageType.NoteOff) {
         // Note Off
         const key = view.getUint8(offset);
         offset++;
@@ -245,31 +296,58 @@ export class MidiInputPlugin implements InputPlugin {
           });
           activeNotes.delete(key);
         }
-      } else if (messageType === 0xb0) {
+      } else if (messageType === MidiMessageType.ControlChange) {
         // Control Change
         offset += 2;
-      } else if (messageType === 0xc0 || messageType === 0xd0) {
-        // Program Change or Channel Pressure
+      } else if (messageType === MidiMessageType.ProgramChange) {
+        // Program Change
+        program = view.getUint8(offset);
         offset += 1;
-      } else if (messageType === 0xe0) {
+      } else if (messageType === MidiMessageType.ChannelAftertouch) {
+        // Channel Pressure
+        offset += 1;
+      } else if (messageType === MidiMessageType.PitchBend) {
         // Pitch Bend
         offset += 2;
-      } else if (status === 0xff) {
+      } else if (status === MidiMessageType.MetaEvent) {
         // Meta Event
         const metaType = view.getUint8(offset);
         offset++;
-        const metaLength = this.readVariableLength(view, offset);
+        const metaLength = readVariableLength(view, offset);
         offset += metaLength.bytesRead;
 
-        if (metaType === 0x03) {
-          // Track Name
-          trackName = this.readChars(view, offset, metaLength.value);
+        if (metaType === MidiMetaEventType.TrackName) {
+          // Track Name (0x03)
+          trackName = readString(view, offset, metaLength.value);
+        } else if (metaType === MidiMetaEventType.InstrumentName) {
+          // Instrument Name (0x04)
+          instrumentName = readString(view, offset, metaLength.value);
+        } else if (metaType === MidiMetaEventType.TextEvent) {
+          // Text Event (0x01) - Use as title if no track name yet
+          if (!title) {
+            title = readString(view, offset, metaLength.value);
+          }
+        } else if (metaType === MidiMetaEventType.CopyrightNotice) {
+          // Copyright (0x02)
+          copyright = readString(view, offset, metaLength.value);
+        } else if (metaType === MidiMetaEventType.SetTempo) {
+          // Set Tempo (0x51)
+          const microsecondsPerQuarter =
+            (view.getUint8(offset) << 16) |
+            (view.getUint8(offset + 1) << 8) |
+            view.getUint8(offset + 2);
+          tempo = Math.round(60000000 / microsecondsPerQuarter);
+        } else if (metaType === MidiMetaEventType.TimeSignature) {
+          // Time Signature (0x58)
+          const numerator = view.getUint8(offset);
+          const denominator = Math.pow(2, view.getUint8(offset + 1));
+          timeSignature = [numerator, denominator];
         }
 
         offset += metaLength.value;
-      } else if (status === 0xf0 || status === 0xf7) {
+      } else if (status === MidiMessageType.SystemExclusive || status === 0xf7) {
         // SysEx
-        const sysexLength = this.readVariableLength(view, offset);
+        const sysexLength = readVariableLength(view, offset);
         offset += sysexLength.bytesRead + sysexLength.value;
       } else {
         // Unknown event, skip
@@ -289,34 +367,19 @@ export class MidiInputPlugin implements InputPlugin {
 
     return {
       name: trackName,
+      instrumentName,
+      program,
+      tempo,
+      timeSignature,
+      title,
+      copyright,
       notes,
       duration: currentTime,
     };
   }
 
-  private readVariableLength(view: DataView, offset: number): { value: number; bytesRead: number } {
-    let value = 0;
-    let bytesRead = 0;
-
-    while (true) {
-      const byte = view.getUint8(offset + bytesRead);
-      bytesRead++;
-
-      value = (value << 7) | (byte & 0x7f);
-
-      if ((byte & 0x80) === 0) {
-        break;
-      }
-    }
-
-    return { value, bytesRead };
-  }
-
+  // Helper method for reading strings (fallback if needed)
   private readChars(view: DataView, offset: number, length: number): string {
-    let result = '';
-    for (let i = 0; i < length; i++) {
-      result += String.fromCharCode(view.getUint8(offset + i));
-    }
-    return result;
+    return readString(view, offset, length);
   }
 }

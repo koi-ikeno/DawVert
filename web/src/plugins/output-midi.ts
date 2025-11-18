@@ -5,6 +5,7 @@
 
 import type { OutputPlugin } from '@/lib/plugin-system';
 import type { CVPJProject, PluginInfo, ConversionConfig, ProjectType } from '@/types/cvpj';
+import { writeVariableLength } from '@/lib/midi-utils';
 
 export class MidiOutputPlugin implements OutputPlugin {
   getInfo(): PluginInfo {
@@ -52,8 +53,30 @@ export class MidiOutputPlugin implements OutputPlugin {
   private createTempoTrack(project: CVPJProject): Uint8Array {
     const events: number[] = [];
 
+    // Project title (if available)
+    if (project.metadata?.name) {
+      events.push(...writeVariableLength(0)); // Delta time
+      events.push(0xff, 0x01); // Text event meta event
+      const title = project.metadata.name;
+      events.push(...writeVariableLength(title.length));
+      for (let i = 0; i < title.length; i++) {
+        events.push(title.charCodeAt(i));
+      }
+    }
+
+    // Copyright notice (if available)
+    if (project.metadata?.comment) {
+      events.push(...writeVariableLength(0)); // Delta time
+      events.push(0xff, 0x02); // Copyright notice meta event
+      const copyright = project.metadata.comment;
+      events.push(...writeVariableLength(copyright.length));
+      for (let i = 0; i < copyright.length; i++) {
+        events.push(copyright.charCodeAt(i));
+      }
+    }
+
     // Time signature
-    events.push(...this.writeVariableLength(0)); // Delta time
+    events.push(...writeVariableLength(0)); // Delta time
     events.push(0xff, 0x58, 0x04); // Time signature meta event
     events.push(project.timesig[0]); // Numerator
     events.push(Math.log2(project.timesig[1])); // Denominator (as power of 2)
@@ -63,7 +86,7 @@ export class MidiOutputPlugin implements OutputPlugin {
     // Tempo
     const bpm = project.metadata?.bpm || 120;
     const microsecondsPerQuarter = Math.round(60000000 / bpm);
-    events.push(...this.writeVariableLength(0)); // Delta time
+    events.push(...writeVariableLength(0)); // Delta time
     events.push(0xff, 0x51, 0x03); // Set tempo meta event
     events.push((microsecondsPerQuarter >> 16) & 0xff);
     events.push((microsecondsPerQuarter >> 8) & 0xff);
@@ -71,15 +94,15 @@ export class MidiOutputPlugin implements OutputPlugin {
 
     // Track name
     const trackName = 'Tempo Track';
-    events.push(...this.writeVariableLength(0)); // Delta time
+    events.push(...writeVariableLength(0)); // Delta time
     events.push(0xff, 0x03); // Track name meta event
-    events.push(...this.writeVariableLength(trackName.length));
+    events.push(...writeVariableLength(trackName.length));
     for (let i = 0; i < trackName.length; i++) {
       events.push(trackName.charCodeAt(i));
     }
 
     // End of track
-    events.push(...this.writeVariableLength(0)); // Delta time
+    events.push(...writeVariableLength(0)); // Delta time
     events.push(0xff, 0x2f, 0x00); // End of track
 
     return new Uint8Array(events);
@@ -92,7 +115,7 @@ export class MidiOutputPlugin implements OutputPlugin {
     const trackName = track.visual?.name || 'Track';
     events.push({
       time: 0,
-      data: [0xff, 0x03, ...this.writeVariableLength(trackName.length),
+      data: [0xff, 0x03, ...writeVariableLength(trackName.length),
              ...Array.from(trackName).map(c => c.charCodeAt(0))],
     });
 
@@ -144,13 +167,13 @@ export class MidiOutputPlugin implements OutputPlugin {
 
     for (const event of midiEvents) {
       const deltaTime = event.time - currentTime;
-      trackData.push(...this.writeVariableLength(deltaTime));
+      trackData.push(...writeVariableLength(deltaTime));
       trackData.push(...event.data);
       currentTime = event.time;
     }
 
     // Add end of track
-    trackData.push(...this.writeVariableLength(0));
+    trackData.push(...writeVariableLength(0));
     trackData.push(0xff, 0x2f, 0x00);
 
     return new Uint8Array(trackData);
@@ -190,20 +213,5 @@ export class MidiOutputPlugin implements OutputPlugin {
     }
 
     return buffer;
-  }
-
-  private writeVariableLength(value: number): number[] {
-    const bytes: number[] = [];
-    let v = value;
-
-    bytes.push(v & 0x7f);
-    v >>= 7;
-
-    while (v > 0) {
-      bytes.unshift((v & 0x7f) | 0x80);
-      v >>= 7;
-    }
-
-    return bytes;
   }
 }

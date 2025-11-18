@@ -15,7 +15,14 @@ Web browser version of [DawVert](https://github.com/SatyrDiamond/DawVert) - a DA
 ### Fully Implemented
 
 #### Input & Output
-- **MIDI** (.mid, .midi) - Full MIDI file support with note events, tempo, time signature
+- **MIDI** (.mid, .midi) - Full MIDI file support with:
+  - Note events (Note On/Off, velocity, duration)
+  - Tempo and time signature
+  - Track names and instrument names
+  - Program changes (GM instruments)
+  - Metadata (title, copyright)
+  - Multiple tracks
+  - Proper delta time encoding/decoding
 
 ### Planned (Stubs Available)
 
