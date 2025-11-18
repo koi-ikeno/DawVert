@@ -6,6 +6,8 @@
 import { pluginRegistry } from '@/lib/plugin-system';
 import { MidiInputPlugin } from './input-midi';
 import { MidiOutputPlugin } from './output-midi';
+import { SoundationInputPlugin } from './input-soundation';
+import { SoundationOutputPlugin } from './output-soundation';
 import {
   FLStudioInputStub,
   FLStudioOutputStub,
@@ -22,7 +24,6 @@ import {
   BeepboxInputStub,
   WaveformOutputStub,
   AmpedStudioOutputStub,
-  SoundationOutputStub,
 } from './stub-plugins';
 
 export function registerPlugins(): void {
@@ -31,6 +32,10 @@ export function registerPlugins(): void {
   // MIDI
   pluginRegistry.registerInput('midi', new MidiInputPlugin());
   pluginRegistry.registerOutput('midi', new MidiOutputPlugin());
+
+  // Soundation
+  pluginRegistry.registerInput('soundation', new SoundationInputPlugin());
+  pluginRegistry.registerOutput('soundation', new SoundationOutputPlugin());
 
   // ========== Stub Plugins (Not Yet Implemented) ==========
   // These are registered but will show an error when used
@@ -68,9 +73,6 @@ export function registerPlugins(): void {
 
   // Amped Studio
   pluginRegistry.registerOutput('amped', AmpedStudioOutputStub);
-
-  // Soundation
-  pluginRegistry.registerOutput('soundation', SoundationOutputStub);
 
   // Log registered plugins
   const inputPlugins = pluginRegistry.getInputPluginsList();

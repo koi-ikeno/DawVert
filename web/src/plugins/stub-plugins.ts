@@ -113,6 +113,3 @@ export const WaveformOutputStub = new StubOutputPlugin('Waveform', 'waveform', [
 
 // Amped Studio
 export const AmpedStudioOutputStub = new StubOutputPlugin('Amped Studio', 'amped', ['ampedstudio'], 'r');
-
-// Soundation
-export const SoundationOutputStub = new StubOutputPlugin('Soundation', 'soundation', ['sng'], 'r');

@@ -26,6 +26,16 @@ Web browser version of [DawVert](https://github.com/SatyrDiamond/DawVert) - a DA
   - Multiple tracks
   - Proper delta time encoding/decoding
 
+- **Soundation** (.sng) - Soundation Studio projects (JSON format):
+  - Instrument and audio tracks
+  - MIDI notes and audio regions
+  - Track parameters (volume, pan, mute, solo)
+  - Plugin/instrument data
+  - Effects chains
+  - Loop settings
+  - Time signature and BPM
+  - Note: ZIP (.sngz) support coming soon
+
 ### Planned (Stubs Available)
 
 The following formats are registered in the system but not yet implemented. They will show "(Not Yet Implemented)" in the UI:
@@ -48,7 +58,6 @@ The following formats are registered in the system but not yet implemented. They
 - Online Sequencer (.sequence)
 - Waveform (.tracktionedit)
 - Amped Studio (.ampedstudio)
-- Soundation (.sng)
 
 ## Development
 
