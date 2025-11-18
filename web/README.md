@@ -10,17 +10,36 @@ Web browser version of [DawVert](https://github.com/SatyrDiamond/DawVert) - a DA
 - 🎨 **Modern UI** - Clean, responsive interface built with React and TypeScript
 - ⚡ **Fast** - TypeScript implementation with optimized performance
 
-## Currently Supported Formats
+## Supported Formats
 
-### Input/Output
-- MIDI (.mid, .midi)
+### Fully Implemented
 
-### Coming Soon
+#### Input & Output
+- **MIDI** (.mid, .midi) - Full MIDI file support with note events, tempo, time signature
+
+### Planned (Stubs Available)
+
+The following formats are registered in the system but not yet implemented. They will show "(Not Yet Implemented)" in the UI:
+
+#### Input Formats
+- FL Studio (.flp)
+- LMMS (.mmp, .mmpz)
+- Ableton Live (.als)
+- Reaper (.rpp)
+- DawProject (.dawproject)
+- Online Sequencer (.sequence)
+- Beepbox/Jummbox (.json)
+
+#### Output Formats
 - FL Studio (.flp)
 - LMMS (.mmp)
 - Ableton Live (.als)
 - Reaper (.rpp)
-- And many more...
+- DawProject (.dawproject)
+- Online Sequencer (.sequence)
+- Waveform (.tracktionedit)
+- Amped Studio (.ampedstudio)
+- Soundation (.sng)
 
 ## Development
 
@@ -103,20 +122,22 @@ DawVert Web follows the same plugin-based architecture as the original DawVert:
 
 ### Adding New Format Support
 
-To add support for a new format:
+See `src/plugins/README.md` for detailed documentation on implementing new plugins.
+
+Quick overview:
 
 1. Create an input plugin in `src/plugins/input-<format>.ts`
 2. Implement the `InputPlugin` interface
 3. Create an output plugin in `src/plugins/output-<format>.ts`
 4. Implement the `OutputPlugin` interface
-5. Register both plugins in `src/plugins/index.ts`
+5. Register both plugins in `src/plugins/index.ts` (replace the stub with your implementation)
 
-Example:
+Example minimal plugin:
 
 ```typescript
-// src/plugins/input-myformat.ts
 import type { InputPlugin } from '@/lib/plugin-system';
 import type { CVPJProject, PluginInfo, ConversionConfig } from '@/types/cvpj';
+import { readFileAsArrayBuffer } from '@/lib/utils';
 
 export class MyFormatInputPlugin implements InputPlugin {
   getInfo(): PluginInfo {
@@ -130,11 +151,23 @@ export class MyFormatInputPlugin implements InputPlugin {
   }
 
   async detect(file: File): Promise<boolean> {
-    // Implement format detection
+    const buffer = await file.slice(0, 4).arrayBuffer();
+    const view = new DataView(buffer);
+    // Check magic number or file signature
+    return view.getUint32(0) === 0x4D594621; // Example
   }
 
   async parse(file: File, config: ConversionConfig): Promise<CVPJProject> {
-    // Implement parsing logic
+    const buffer = await readFileAsArrayBuffer(file);
+    // Parse and return CVPJ project
+    return {
+      type: 'r',
+      time_ppq: 96,
+      time_float: false,
+      track_data: {},
+      track_order: [],
+      timesig: [4, 4],
+    };
   }
 
   isUsable(): { usable: boolean; message: string } {
@@ -142,6 +175,12 @@ export class MyFormatInputPlugin implements InputPlugin {
   }
 }
 ```
+
+Utilities available in `src/lib/utils.ts`:
+- File reading (ArrayBuffer, Text, JSON, XML)
+- Binary data manipulation
+- MIDI/audio conversions
+- And more...
 
 ## License
 

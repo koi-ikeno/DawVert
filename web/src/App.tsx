@@ -7,6 +7,8 @@ import './App.css';
 interface PluginOption {
   shortname: string;
   name: string;
+  implemented: boolean;
+  extensions: string[];
 }
 
 function App() {
@@ -24,21 +26,34 @@ function App() {
     registerPlugins();
 
     // Load plugin lists
-    const inputs = pluginRegistry.getInputPluginsList().map(p => ({
-      shortname: p.shortname,
-      name: p.info.name,
-    }));
+    const inputs = pluginRegistry.getInputPluginsList().map(p => {
+      const plugin = pluginRegistry.getInputPlugin(p.shortname);
+      const usability = plugin?.isUsable() || { usable: false, message: '' };
+      return {
+        shortname: p.shortname,
+        name: p.info.name,
+        implemented: usability.usable,
+        extensions: p.info.file_ext,
+      };
+    });
     setInputPlugins(inputs);
 
-    const outputs = pluginRegistry.getOutputPluginsList().map(p => ({
-      shortname: p.shortname,
-      name: p.info.name,
-    }));
+    const outputs = pluginRegistry.getOutputPluginsList().map(p => {
+      const plugin = pluginRegistry.getOutputPlugin(p.shortname);
+      const usability = plugin?.isUsable() || { usable: false, message: '' };
+      return {
+        shortname: p.shortname,
+        name: p.info.name,
+        implemented: usability.usable,
+        extensions: p.info.file_ext,
+      };
+    });
     setOutputPlugins(outputs);
 
-    // Set default output plugin
+    // Set default output plugin (prefer implemented ones)
     if (outputs.length > 0) {
-      setSelectedOutputPlugin(outputs[0].shortname);
+      const implementedPlugin = outputs.find(p => p.implemented);
+      setSelectedOutputPlugin(implementedPlugin?.shortname || outputs[0].shortname);
     }
   }, []);
 
@@ -116,7 +131,7 @@ function App() {
               type="file"
               id="file-input"
               onChange={handleFileChange}
-              accept=".mid,.midi"
+              accept={inputPlugins.flatMap(p => p.extensions).map(ext => '.' + ext).join(',')}
               disabled={isConverting}
             />
             <label htmlFor="file-input" className="file-input-label">
@@ -135,7 +150,7 @@ function App() {
               <option value="auto">Auto-detect</option>
               {inputPlugins.map((plugin) => (
                 <option key={plugin.shortname} value={plugin.shortname}>
-                  {plugin.name}
+                  {plugin.name} {plugin.implemented ? '' : '(Not Yet Implemented)'}
                 </option>
               ))}
             </select>
@@ -156,7 +171,7 @@ function App() {
             >
               {outputPlugins.map((plugin) => (
                 <option key={plugin.shortname} value={plugin.shortname}>
-                  {plugin.name}
+                  {plugin.name} {plugin.implemented ? '' : '(Not Yet Implemented)'}
                 </option>
               ))}
             </select>
@@ -201,14 +216,32 @@ function App() {
             It allows you to convert music project files between different DAW formats
             entirely in your browser - no server uploads required!
           </p>
-          <p>
-            <strong>Currently supported formats:</strong>
-          </p>
+
+          <h4>Fully Implemented Formats:</h4>
           <ul>
-            <li>MIDI (.mid, .midi)</li>
+            {inputPlugins.filter(p => p.implemented).length > 0 ? (
+              inputPlugins.filter(p => p.implemented).map(p => (
+                <li key={p.shortname}>
+                  <strong>{p.name}</strong> (.{p.extensions.join(', .')})
+                </li>
+              ))
+            ) : (
+              <li><em>None yet</em></li>
+            )}
           </ul>
+
+          <h4>Coming Soon:</h4>
+          <ul>
+            {inputPlugins.filter(p => !p.implemented).map(p => (
+              <li key={p.shortname}>
+                {p.name} (.{p.extensions.join(', .')})
+              </li>
+            ))}
+          </ul>
+
           <p>
-            <em>More formats coming soon...</em>
+            <strong>Plugin Status:</strong> {inputPlugins.filter(p => p.implemented).length} of {inputPlugins.length} input plugins implemented,
+            {' '}{outputPlugins.filter(p => p.implemented).length} of {outputPlugins.length} output plugins implemented
           </p>
         </div>
       </main>

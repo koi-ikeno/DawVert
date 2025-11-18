@@ -6,15 +6,88 @@
 import { pluginRegistry } from '@/lib/plugin-system';
 import { MidiInputPlugin } from './input-midi';
 import { MidiOutputPlugin } from './output-midi';
+import {
+  FLStudioInputStub,
+  FLStudioOutputStub,
+  LMMSInputStub,
+  LMMSOutputStub,
+  AbletonInputStub,
+  AbletonOutputStub,
+  ReaperInputStub,
+  ReaperOutputStub,
+  DawProjectInputStub,
+  DawProjectOutputStub,
+  OnlineSeqInputStub,
+  OnlineSeqOutputStub,
+  BeepboxInputStub,
+  WaveformOutputStub,
+  AmpedStudioOutputStub,
+  SoundationOutputStub,
+} from './stub-plugins';
 
 export function registerPlugins(): void {
-  // Register input plugins
-  pluginRegistry.registerInput('midi', new MidiInputPlugin());
+  // ========== Fully Implemented Plugins ==========
 
-  // Register output plugins
+  // MIDI
+  pluginRegistry.registerInput('midi', new MidiInputPlugin());
   pluginRegistry.registerOutput('midi', new MidiOutputPlugin());
 
+  // ========== Stub Plugins (Not Yet Implemented) ==========
+  // These are registered but will show an error when used
+  // They serve as placeholders for future implementation
+
+  // FL Studio
+  pluginRegistry.registerInput('flp', FLStudioInputStub);
+  pluginRegistry.registerOutput('flp', FLStudioOutputStub);
+
+  // LMMS
+  pluginRegistry.registerInput('lmms', LMMSInputStub);
+  pluginRegistry.registerOutput('lmms', LMMSOutputStub);
+
+  // Ableton Live
+  pluginRegistry.registerInput('ableton', AbletonInputStub);
+  pluginRegistry.registerOutput('ableton', AbletonOutputStub);
+
+  // Reaper
+  pluginRegistry.registerInput('reaper', ReaperInputStub);
+  pluginRegistry.registerOutput('reaper', ReaperOutputStub);
+
+  // DawProject
+  pluginRegistry.registerInput('dawproject', DawProjectInputStub);
+  pluginRegistry.registerOutput('dawproject', DawProjectOutputStub);
+
+  // Online Sequencer
+  pluginRegistry.registerInput('onlineseq', OnlineSeqInputStub);
+  pluginRegistry.registerOutput('onlineseq', OnlineSeqOutputStub);
+
+  // Beepbox/Jummbox
+  pluginRegistry.registerInput('beepbox', BeepboxInputStub);
+
+  // Waveform
+  pluginRegistry.registerOutput('waveform', WaveformOutputStub);
+
+  // Amped Studio
+  pluginRegistry.registerOutput('amped', AmpedStudioOutputStub);
+
+  // Soundation
+  pluginRegistry.registerOutput('soundation', SoundationOutputStub);
+
+  // Log registered plugins
+  const inputPlugins = pluginRegistry.getInputPluginsList();
+  const outputPlugins = pluginRegistry.getOutputPluginsList();
+
   console.log('Registered plugins:');
-  console.log('  Input:', pluginRegistry.getInputPluginsList().map(p => p.shortname).join(', '));
-  console.log('  Output:', pluginRegistry.getOutputPluginsList().map(p => p.shortname).join(', '));
+  console.log(`  Input (${inputPlugins.length}):`, inputPlugins.map(p => p.shortname).join(', '));
+  console.log(`  Output (${outputPlugins.length}):`, outputPlugins.map(p => p.shortname).join(', '));
+
+  // Log implemented vs stub plugins
+  const implementedInput = inputPlugins.filter(p =>
+    pluginRegistry.getInputPlugin(p.shortname)?.isUsable().usable
+  );
+  const implementedOutput = outputPlugins.filter(p =>
+    pluginRegistry.getOutputPlugin(p.shortname)?.isUsable().usable
+  );
+
+  console.log(`  Implemented: ${implementedInput.length} input, ${implementedOutput.length} output`);
+  console.log(`  Stubs: ${inputPlugins.length - implementedInput.length} input, ${outputPlugins.length - implementedOutput.length} output`);
 }
