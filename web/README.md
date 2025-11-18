@@ -26,7 +26,7 @@ Web browser version of [DawVert](https://github.com/SatyrDiamond/DawVert) - a DA
   - Multiple tracks
   - Proper delta time encoding/decoding
 
-- **Soundation** (.sng) - Soundation Studio projects (JSON format):
+- **Soundation** (.sng, .sngz) - Soundation Studio projects:
   - Instrument and audio tracks
   - MIDI notes and audio regions
   - Track parameters (volume, pan, mute, solo)
@@ -34,7 +34,7 @@ Web browser version of [DawVert](https://github.com/SatyrDiamond/DawVert) - a DA
   - Effects chains
   - Loop settings
   - Time signature and BPM
-  - Note: ZIP (.sngz) support coming soon
+  - ZIP compressed format (.sngz) support (requires modern browser)
 
 ### Planned (Stubs Available)
 
@@ -116,12 +116,15 @@ web/
 │   │   ├── type-conversion.ts    # Project type conversions (r↔m, ri↔r, etc.)
 │   │   ├── plugin-conversion.ts  # Plugin/effect conversions between DAWs
 │   │   ├── utils.ts              # File I/O, binary data, conversions
-│   │   └── midi-utils.ts         # MIDI-specific utilities
+│   │   ├── midi-utils.ts         # MIDI-specific utilities
+│   │   └── zip-utils.ts          # ZIP file extraction (browser-native)
 │   ├── plugins/       # Format plugins
-│   │   ├── input-midi.ts     # MIDI input plugin
-│   │   ├── output-midi.ts    # MIDI output plugin
-│   │   ├── stub-plugins.ts   # Placeholder plugins for future formats
-│   │   └── index.ts          # Plugin registration
+│   │   ├── input-midi.ts         # MIDI input plugin
+│   │   ├── output-midi.ts        # MIDI output plugin
+│   │   ├── input-soundation.ts   # Soundation input plugin
+│   │   ├── output-soundation.ts  # Soundation output plugin
+│   │   ├── stub-plugins.ts       # Placeholder plugins for future formats
+│   │   └── index.ts              # Plugin registration
 │   ├── types/         # TypeScript type definitions
 │   │   └── cvpj.ts           # CVPJ project types
 │   ├── App.tsx        # Main React app
@@ -132,7 +135,8 @@ web/
 ├── tsconfig.json
 ├── vite.config.ts
 ├── README.md
-└── MIGRATION_ANALYSIS.md  # Detailed migration roadmap
+├── IMPLEMENTATION_STATUS.md  # Current implementation status
+└── MIGRATION_ANALYSIS.md     # Detailed migration roadmap
 ```
 
 ## Architecture
@@ -249,11 +253,10 @@ export class MyFormatInputPlugin implements InputPlugin {
 }
 ```
 
-Utilities available in `src/lib/utils.ts`:
-- File reading (ArrayBuffer, Text, JSON, XML)
-- Binary data manipulation
-- MIDI/audio conversions
-- And more...
+Utilities available:
+- **`src/lib/utils.ts`** - File reading (ArrayBuffer, Text, JSON, XML), binary data manipulation, MIDI/audio conversions
+- **`src/lib/midi-utils.ts`** - MIDI encoding/decoding, VLQ, GM instrument mapping
+- **`src/lib/zip-utils.ts`** - Browser-native ZIP extraction using DecompressionStream API
 
 ## License
 

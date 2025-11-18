@@ -8,6 +8,7 @@
 import type { InputPlugin, PluginInfo } from '../lib/plugin-system';
 import type { CVPJProject, ConversionConfig, Track, Note } from '../types/cvpj';
 import { readFileAsText, readFileAsJSON } from '../lib/utils';
+import { extractFileFromZip, listZipFiles, supportsDecompression } from '../lib/zip-utils';
 
 // Soundation Types
 interface SoundationParam {
@@ -96,9 +97,28 @@ export class SoundationInputPlugin implements InputPlugin {
     const ext = file.name.split('.').pop()?.toLowerCase();
 
     if (ext === 'sngz') {
-      // ZIP compressed - need to extract .sng file
-      // For Phase 3, we'll skip ZIP support and only support .sng
-      throw new Error('SNGZ (ZIP) format not yet supported. Please extract the .sng file first.');
+      // ZIP compressed - extract .sng file
+      if (!supportsDecompression()) {
+        throw new Error('Your browser does not support ZIP decompression. Please use a modern browser or extract the .sng file manually.');
+      }
+
+      // List files in ZIP to find .sng file
+      const files = await listZipFiles(file);
+      const sngFile = files.find(f => f.endsWith('.sng'));
+
+      if (!sngFile) {
+        throw new Error('No .sng file found in the ZIP archive');
+      }
+
+      // Extract the .sng file
+      const sngData = await extractFileFromZip(file, sngFile);
+      if (!sngData) {
+        throw new Error('Failed to extract .sng file from ZIP');
+      }
+
+      // Parse JSON from extracted data
+      const jsonText = new TextDecoder().decode(sngData);
+      soundationData = JSON.parse(jsonText) as SoundationProject;
     } else {
       // Plain JSON
       soundationData = await readFileAsJSON(file) as SoundationProject;
@@ -293,9 +313,16 @@ export class SoundationInputPlugin implements InputPlugin {
   }
 
   isUsable(): { usable: boolean; message: string } {
-    return {
-      usable: true,
-      message: 'Soundation .sng files supported. ZIP (.sngz) support coming soon.',
-    };
+    if (supportsDecompression()) {
+      return {
+        usable: true,
+        message: 'Soundation .sng and .sngz files supported',
+      };
+    } else {
+      return {
+        usable: true,
+        message: 'Soundation .sng files supported. .sngz requires a modern browser with DecompressionStream support.',
+      };
+    }
   }
 }
