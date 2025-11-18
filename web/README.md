@@ -36,6 +36,17 @@ Web browser version of [DawVert](https://github.com/SatyrDiamond/DawVert) - a DA
   - Time signature and BPM
   - ZIP compressed format (.sngz) support (requires modern browser)
 
+- **DawProject** (.dawproject) - Standard DAW project format:
+  - Basic tracks (notes, audio, hybrid)
+  - MIDI notes with velocity
+  - Audio clips and references
+  - Track parameters (volume, pan, mute, solo)
+  - Tempo and time signature
+  - Markers
+  - Metadata (title, artist, album, etc.)
+  - ZIP archive support (requires modern browser)
+  - **Phase 1 Limitations**: No VST/VST3/CLAP plugins, no automation, no send/return routing
+
 ### Planned (Stubs Available)
 
 The following formats are registered in the system but not yet implemented. They will show "(Not Yet Implemented)" in the UI:
@@ -45,7 +56,6 @@ The following formats are registered in the system but not yet implemented. They
 - LMMS (.mmp, .mmpz)
 - Ableton Live (.als)
 - Reaper (.rpp)
-- DawProject (.dawproject)
 - Online Sequencer (.sequence)
 - Beepbox/Jummbox (.json)
 
@@ -54,7 +64,6 @@ The following formats are registered in the system but not yet implemented. They
 - LMMS (.mmp)
 - Ableton Live (.als)
 - Reaper (.rpp)
-- DawProject (.dawproject)
 - Online Sequencer (.sequence)
 - Waveform (.tracktionedit)
 - Amped Studio (.ampedstudio)

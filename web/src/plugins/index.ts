@@ -8,6 +8,8 @@ import { MidiInputPlugin } from './input-midi';
 import { MidiOutputPlugin } from './output-midi';
 import { SoundationInputPlugin } from './input-soundation';
 import { SoundationOutputPlugin } from './output-soundation';
+import { DawProjectInputPlugin } from './input-dawproject';
+import { DawProjectOutputPlugin } from './output-dawproject';
 import {
   FLStudioInputStub,
   FLStudioOutputStub,
@@ -17,8 +19,6 @@ import {
   AbletonOutputStub,
   ReaperInputStub,
   ReaperOutputStub,
-  DawProjectInputStub,
-  DawProjectOutputStub,
   OnlineSeqInputStub,
   OnlineSeqOutputStub,
   BeepboxInputStub,
@@ -36,6 +36,10 @@ export function registerPlugins(): void {
   // Soundation
   pluginRegistry.registerInput('soundation', new SoundationInputPlugin());
   pluginRegistry.registerOutput('soundation', new SoundationOutputPlugin());
+
+  // DawProject
+  pluginRegistry.registerInput('dawproject', new DawProjectInputPlugin());
+  pluginRegistry.registerOutput('dawproject', new DawProjectOutputPlugin());
 
   // ========== Stub Plugins (Not Yet Implemented) ==========
   // These are registered but will show an error when used
@@ -56,10 +60,6 @@ export function registerPlugins(): void {
   // Reaper
   pluginRegistry.registerInput('reaper', ReaperInputStub);
   pluginRegistry.registerOutput('reaper', ReaperOutputStub);
-
-  // DawProject
-  pluginRegistry.registerInput('dawproject', DawProjectInputStub);
-  pluginRegistry.registerOutput('dawproject', DawProjectOutputStub);
 
   // Online Sequencer
   pluginRegistry.registerInput('onlineseq', OnlineSeqInputStub);

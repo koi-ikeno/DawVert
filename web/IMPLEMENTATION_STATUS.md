@@ -22,7 +22,7 @@ Last updated: 2025-11-18
 
 ## Format Support
 
-### Fully Implemented (2 formats)
+### Fully Implemented (3 formats)
 
 #### MIDI (.mid, .midi)
 - ✅ Input plugin
@@ -57,25 +57,48 @@ Last updated: 2025-11-18
 - Time signature and BPM
 - ZIP compressed format support (requires modern browser)
 
+#### DawProject (.dawproject)
+- ✅ Input plugin
+- ✅ Output plugin (XML only)
+- ✅ ZIP support (.dawproject)
+- ⚠️ Basic implementation (Phase 1)
+
+**Features:**
+- Basic tracks (notes, audio, hybrid)
+- MIDI notes with velocity and channel
+- Audio clips and file references
+- Track parameters (volume, pan, mute, solo)
+- Tempo and time signature
+- Markers
+- Metadata (title, artist, album, genre, etc.)
+- ZIP archive support (requires modern browser)
+- Browser-native XML parsing
+
+**Phase 1 Limitations:**
+- ❌ No VST/VST3/CLAP plugin support
+- ❌ No automation (beyond basic parameters)
+- ❌ No send/return routing
+- ❌ No audio warps/timestretching
+- ❌ No nested clips
+- ❌ Output creates XML only (no ZIP yet)
+
 ---
 
 ## Stub Plugins (Not Yet Implemented)
 
-### Input Stubs (7)
+### Input Stubs (6)
 - FL Studio (.flp) - Binary, complex
 - LMMS (.mmp, .mmpz) - XML, ZIP optional
 - Ableton Live (.als) - GZIP+XML, complex
 - Reaper (.rpp) - Proprietary text format
-- DawProject (.dawproject) - ZIP+XML standard
 - Online Sequencer (.sequence) - Protobuf binary
 - Beepbox/Jummbox (.json) - JSON, chip tune
 
-### Output Stubs (8)
+### Output Stubs (7)
 - FL Studio (.flp)
 - LMMS (.mmp)
 - Ableton Live (.als)
 - Reaper (.rpp)
-- DawProject (.dawproject)
 - Online Sequencer (.sequence)
 - Waveform (.tracktionedit)
 - Amped Studio (.ampedstudio)
@@ -160,12 +183,12 @@ Last updated: 2025-11-18
 | Category | Lines | Files |
 |----------|-------|-------|
 | **Core Libraries** | ~2,200 | 6 |
-| **Plugins (Implemented)** | ~1,100 | 4 |
+| **Plugins (Implemented)** | ~2,100 | 7 |
 | **Plugins (Stubs)** | ~120 | 1 |
-| **Type Definitions** | ~400 | 1 |
+| **Type Definitions** | ~650 | 2 |
 | **Utilities** | ~650 | 3 |
-| **Documentation** | ~1,000 | 3 |
-| **Total** | ~5,470 | 18 |
+| **Documentation** | ~1,700 | 4 |
+| **Total** | ~7,420 | 23 |
 
 ---
 
@@ -190,14 +213,21 @@ Last updated: 2025-11-18
 - [x] .sngz support
 - [x] Production ready
 
-### Phase 4: Additional Formats (Planned)
+### Phase 4: Standard Format Support ✅
+- [x] DawProject input plugin (basic)
+- [x] DawProject output plugin (basic)
+- [x] XML parsing (browser-native)
+- [x] Type definitions
+- [x] Documentation
+
+### Phase 5: Additional Formats (Planned)
 - [ ] LMMS (XML)
 - [ ] Reaper (text)
-- [ ] DawProject (ZIP+XML)
+- [ ] DawProject Phase 2 (VST, automation)
 - [ ] Online Sequencer (Protobuf)
 - [ ] More JSON formats
 
-### Phase 5: Advanced Features (Future)
+### Phase 6: Advanced Features (Future)
 - [ ] Remaining type conversions
 - [ ] Advanced plugin conversions
 - [ ] Audio file handling
