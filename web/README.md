@@ -7,6 +7,8 @@ Web browser version of [DawVert](https://github.com/SatyrDiamond/DawVert) - a DA
 - 🌐 **Runs entirely in your browser** - No server uploads, all processing is done locally
 - 🔒 **Privacy-focused** - Your project files never leave your device
 - 🎵 **Format conversion** - Convert between different DAW project formats
+- 🔄 **Type conversion** - Automatic conversion between project types (Regular, Multiple, Indexed, etc.)
+- 🔌 **Plugin conversion** - Smart mapping of plugins/effects between different DAWs
 - 🎨 **Modern UI** - Clean, responsive interface built with React and TypeScript
 - ⚡ **Fast** - TypeScript implementation with optimized performance
 
@@ -100,11 +102,16 @@ web/
 ├── src/
 │   ├── components/     # React components (future)
 │   ├── lib/           # Core conversion libraries
-│   │   ├── converter.ts      # Main conversion orchestrator
-│   │   └── plugin-system.ts  # Plugin registry and management
+│   │   ├── converter.ts          # Main conversion orchestrator
+│   │   ├── plugin-system.ts      # Plugin registry and management
+│   │   ├── type-conversion.ts    # Project type conversions (r↔m, ri↔r, etc.)
+│   │   ├── plugin-conversion.ts  # Plugin/effect conversions between DAWs
+│   │   ├── utils.ts              # File I/O, binary data, conversions
+│   │   └── midi-utils.ts         # MIDI-specific utilities
 │   ├── plugins/       # Format plugins
 │   │   ├── input-midi.ts     # MIDI input plugin
 │   │   ├── output-midi.ts    # MIDI output plugin
+│   │   ├── stub-plugins.ts   # Placeholder plugins for future formats
 │   │   └── index.ts          # Plugin registration
 │   ├── types/         # TypeScript type definitions
 │   │   └── cvpj.ts           # CVPJ project types
@@ -114,7 +121,9 @@ web/
 ├── index.html
 ├── package.json
 ├── tsconfig.json
-└── vite.config.ts
+├── vite.config.ts
+├── README.md
+└── MIGRATION_ANALYSIS.md  # Detailed migration roadmap
 ```
 
 ## Architecture
@@ -123,9 +132,57 @@ DawVert Web follows the same plugin-based architecture as the original DawVert:
 
 1. **Input Plugins** - Parse various DAW formats into a common CVPJ (Common Virtual Project) format
 2. **CVPJ Core** - Internal representation of music projects
-3. **Type Conversion** - Convert between different project type representations (Regular, Multiple, Indexed, etc.)
+3. **Type Conversion** - Convert between different project type representations
 4. **Plugin Conversion** - Map plugins/effects between different DAWs
 5. **Output Plugins** - Generate output files in target DAW formats
+
+### Type Conversion System
+
+The type conversion system handles conversions between 7 different project types:
+
+- **r** (Regular) - Standard track-based projects
+- **ri** (Regular/Indexed) - Track-based with indexed notes
+- **rm** (Regular/Multiple) - Track-based with multi-instrument support
+- **rs** (Regular/Scened) - Track-based with scenes
+- **m** (Multiple) - Playlist-based with separate instruments
+- **mi** (Multiple/Indexed) - Playlist-based with indexed notes
+- **ms** (Multiple/Scened) - Playlist-based with scenes
+
+Implemented conversions:
+- `rm2r` - Regular/Multiple → Regular
+- `r2m` - Regular → Multiple
+- `ri2r` - Regular/Indexed → Regular
+- `m2r` - Multiple → Regular
+- `rs2r` - Regular/Scened → Regular
+
+The converter automatically determines the shortest conversion path between input and output types.
+
+### Plugin Conversion System
+
+The plugin conversion system maps plugins and effects between different DAWs:
+
+- **Universal → MIDI GM** - Converts basic synths to General MIDI instruments
+- **MIDI GM → Universal** - Converts General MIDI to basic oscillator synths
+- **Universal Filters** - Generic filter preservation
+- **Universal EQ** - Generic EQ preservation
+- **Universal Effects** - Bitcrush, Delay, Reverb preservation
+
+Plugin converters can be registered to add custom conversions:
+
+```typescript
+import { registerPluginConverter } from '@/lib/plugin-conversion';
+
+registerPluginConverter({
+  name: 'My Converter',
+  sourcePlugin: { category: 'universal', type: 'synth-osc' },
+  targetPlugin: { category: 'native', type: 'my-synth' },
+  targetDaw: 'mydaw',
+  convert: (plugin, context) => {
+    // Conversion logic
+    return convertedPlugin;
+  },
+});
+```
 
 ### Adding New Format Support
 

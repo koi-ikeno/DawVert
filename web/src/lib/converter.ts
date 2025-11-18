@@ -5,6 +5,8 @@
 
 import type { CVPJProject, ConversionConfig, ProjectType } from '@/types/cvpj';
 import { pluginRegistry } from './plugin-system';
+import { convertProjectType } from './type-conversion';
+import { convertAllPlugins, type PluginConversionContext } from './plugin-conversion';
 
 export interface ConversionProgress {
   stage: 'parsing' | 'type-conversion' | 'plugin-conversion' | 'output' | 'complete' | 'error';
@@ -84,6 +86,8 @@ export class DawConverter {
       const inputType = project.type;
       const outputType = outputPlugin.getType();
 
+      let convertedProject = project;
+
       if (inputType !== outputType) {
         onProgress?.({
           stage: 'type-conversion',
@@ -91,7 +95,7 @@ export class DawConverter {
           message: `Converting from ${inputType} to ${outputType}...`,
         });
 
-        await this.convertProjectType(project, inputType, outputType, onProgress);
+        convertedProject = convertProjectType(project, outputType);
       }
 
       // Stage 5: Plugin conversion
@@ -101,8 +105,18 @@ export class DawConverter {
         message: 'Converting plugins and effects...',
       });
 
-      // TODO: Implement plugin conversion
-      // await this.convertPlugins(project, outputFormat);
+      if (convertedProject.plugins) {
+        const conversionContext: PluginConversionContext = {
+          sourceDaw: detectedFormat,
+          targetDaw: outputFormat,
+        };
+
+        convertedProject.plugins = convertAllPlugins(
+          convertedProject.plugins,
+          outputFormat,
+          conversionContext
+        );
+      }
 
       // Stage 6: Generate output
       onProgress?.({
@@ -111,7 +125,7 @@ export class DawConverter {
         message: `Generating ${outputPlugin.getInfo().name}...`,
       });
 
-      const outputBlob = await outputPlugin.parse(project, this.config);
+      const outputBlob = await outputPlugin.parse(convertedProject, this.config);
 
       onProgress?.({
         stage: 'complete',
@@ -134,39 +148,4 @@ export class DawConverter {
     }
   }
 
-  private async convertProjectType(
-    project: CVPJProject,
-    fromType: ProjectType,
-    toType: ProjectType,
-    onProgress?: ProgressCallback
-  ): Promise<void> {
-    // Type conversion logic
-    // This is a simplified version - the full implementation would include
-    // all the conversion functions from functions_song/
-
-    onProgress?.({
-      stage: 'type-conversion',
-      progress: 45,
-      message: `Converting project type from ${fromType} to ${toType}...`,
-    });
-
-    // For now, we'll just update the type
-    // TODO: Implement full type conversion logic from Python version
-    // This would include conversions like:
-    // - r to m (Regular to Multiple)
-    // - m to r (Multiple to Regular)
-    // - mi to m (MultipleIndexed to Multiple)
-    // - etc.
-
-    project.type = toType;
-  }
-
-  private async convertPlugins(project: CVPJProject, outputFormat: string): Promise<void> {
-    // Plugin conversion logic
-    // TODO: Implement plugin conversion from functions/plug_conv.py
-    // This would map plugins between different DAWs, for example:
-    // - MIDI instruments to DAW-specific instruments
-    // - Universal effects to DAW-specific effects
-    // - VST plugins compatibility checks
-  }
 }

@@ -60,15 +60,34 @@ export interface PluginState {
   [key: string]: any;
 }
 
+export interface Oscillator {
+  enabled: boolean;
+  shape?: 'sine' | 'square' | 'saw' | 'triangle' | 'pulse' | 'noise' | 'custom';
+  volume: number;
+  pitch: number;
+  pan: number;
+  detune?: number;
+  phase?: number;
+  pulse_width?: number;
+  [key: string]: any;
+}
+
 export interface Plugin {
-  type: string;
+  type?: string;
   subtype?: string;
+  plugin_category?: string; // 'universal', 'native', 'external', 'midi'
+  plugin_type?: string;
+  plugin_subtype?: string;
   name?: string;
   enabled?: boolean;
   params?: ParamSet;
   state?: PluginState;
   datavals?: any;
   visual?: Visual;
+  oscillators?: Oscillator[];
+  filter?: any;
+  eq?: any;
+  [key: string]: any;
 }
 
 export interface PluginSlot {
