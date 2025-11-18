@@ -1,20 +1,36 @@
 /**
- * DawProject Input Plugin (Basic Implementation)
+ * DawProject Input Plugin (Phase 2 - Extended)
  *
  * Parses DawProject files (.dawproject)
  * Format: ZIP archive containing project.xml and optional metadata.xml
  *
- * Phase 1 Limitations:
- * - No VST/VST3/CLAP plugin support
- * - No automation (beyond basic parameters)
- * - No send/return routing
- * - No audio warps/timestretching
- * - Basic tracks, notes, and audio only
+ * Phase 2 Features:
+ * ✅ Automation (parameter automation, tempo, time signature)
+ * ✅ Send/Return routing
+ * ✅ VST plugin metadata (name, parameters - NO audio processing)
+ * ✅ Audio warps/timestretching metadata
+ * ✅ Nested clips
+ * ✅ Per-note automation
+ *
+ * Limitations:
+ * ❌ VST audio processing (impossible in browser)
+ * ❌ Audio file extraction from ZIP (metadata only)
  */
 
 import type { InputPlugin, PluginInfo } from '../lib/plugin-system';
-import type { CVPJProject, ConversionConfig, Track, Note } from '../types/cvpj';
-import type { DawProject, DawTrack, DawClip, DawNote, DawNumericParam, DawBoolParam } from '../types/dawproject';
+import type { CVPJProject, ConversionConfig, Track, Note, Plugin } from '../types/cvpj';
+import type {
+  DawProject,
+  DawTrack,
+  DawClip,
+  DawNote,
+  DawNumericParam,
+  DawBoolParam,
+  DawSend,
+  DawDevice,
+  DawPoints,
+  DawWarps,
+} from '../types/dawproject';
 import { extractFileFromZip, listZipFiles, supportsDecompression } from '../lib/zip-utils';
 
 export class DawProjectInputPlugin implements InputPlugin {
